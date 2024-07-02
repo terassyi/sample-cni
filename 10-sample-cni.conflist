@@ -1,0 +1,33 @@
+{
+  "cniVersion": "1.0.0",
+  "name": "sample-cni",
+  "plugins": [
+    {
+      "type": "sample-cni",
+      "ipMasq": false,
+      "ipam": {
+        "type": "sample-cni",
+        "dataDir": "/run/cni-ipam-state",
+        "routes": [
+          {
+            "dst": "0.0.0.0/0"
+          }
+        ],
+        "ranges": [
+          [
+            {
+              "subnet": "10.244.0.0/24"
+            }
+          ]
+        ]
+      },
+      "mtu": 1500
+    },
+    {
+      "type": "portmap",
+      "capabilities": {
+        "portMappings": true
+      }
+    }
+  ]
+}
