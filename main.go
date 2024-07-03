@@ -1,21 +1,24 @@
 package main
 
 import (
-	"fmt"
 	"io/fs"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"sort"
 
 	"github.com/containernetworking/cni/pkg/skel"
+	"github.com/containernetworking/cni/pkg/types"
+	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/cni/pkg/version"
 	"github.com/pkg/errors"
 )
 
 const (
-	CIDR    = "10.244.0.0/24"
-	RUN_DIR = "/run/cni-ipam-state"
+	CIDR        = "10.244.0.0/24"
+	RUN_DIR     = "/run/cni-ipam-state"
+	CNI_VERSION = "1.0.0"
 )
 
 func main() {
@@ -24,7 +27,54 @@ func main() {
 }
 
 func cmdAdd(args *skel.CmdArgs) error {
-	return nil
+	addr, err := pick()
+	if err != nil {
+		return err
+	}
+	if err := createAllocation(addr); err != nil {
+		return err
+	}
+
+	cidr, err := netip.ParsePrefix(CIDR)
+	if err != nil {
+		return err
+	}
+
+	iface := 0
+	a := &net.IPNet{
+		IP:   net.ParseIP(addr.String()),
+		Mask: net.CIDRMask(24, 32),
+	}
+
+	_, dst, err := net.ParseCIDR("0.0.0.0/0")
+	if err != nil {
+		return err
+	}
+
+	gw := net.ParseIP(cidr.Addr().Next().String())
+
+	result := current.Result{
+		CNIVersion: CNI_VERSION,
+		Interfaces: []*current.Interface{
+			{
+				Name: "eth0",
+			},
+		},
+		IPs: []*current.IPConfig{
+			{
+				Interface: &iface,
+				Gateway:   gw,
+				Address:   *a,
+			},
+		},
+		Routes: []*types.Route{
+			{
+				Dst: *dst,
+				GW:  gw,
+			},
+		},
+	}
+	return types.PrintResult(&result, CNI_VERSION)
 }
 
 func cmdDel(args *skel.CmdArgs) error {
@@ -39,14 +89,18 @@ func listAllocation() ([]netip.Addr, error) {
 	allocations := make([]netip.Addr, 0)
 	if err := filepath.WalkDir(RUN_DIR, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return errors.Wrap(err, "failed to walkdir")
+			if os.IsNotExist(err) {
+				os.MkdirAll(RUN_DIR, os.ModePerm)
+			} else {
+				return errors.Wrap(err, "failed to walkdir")
+			}
 		}
 
 		if d.IsDir() {
 			return nil
 		}
 
-		addr, err := netip.ParseAddr(path)
+		addr, err := netip.ParseAddr(filepath.Base(path))
 		if err != nil {
 			return err
 		}
@@ -78,7 +132,7 @@ func deleteAllocation(addr netip.Addr) error {
 
 func pick() (netip.Addr, error) {
 	cidr, err := netip.ParsePrefix(CIDR)
-	addr := cidr.Addr()
+	addr := cidr.Addr().Next().Next() // .2
 	if err != nil {
 		return addr, err
 	}
@@ -91,17 +145,10 @@ func pick() (netip.Addr, error) {
 	if len(allocs) == 0 {
 		return addr, nil
 	}
-	index := 0
 
-	for i := 0; i < 2^cidr.Bits(); i++ {
+	max := allocs[len(allocs)-1]
 
-		if addr.Compare(allocs[index]) != 0 {
-			// pick allocatable address
-			return addr, nil
-		}
-		index++
-		addr = addr.Next()
+	addr = max.Next()
 
-	}
-	return addr, fmt.Errorf("no allocatable addreesses")
+	return addr, nil
 }
