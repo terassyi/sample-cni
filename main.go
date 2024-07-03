@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io/fs"
 	"net"
 	"net/netip"
@@ -78,7 +79,29 @@ func cmdAdd(args *skel.CmdArgs) error {
 }
 
 func cmdDel(args *skel.CmdArgs) error {
-	return nil
+	var conf types.NetConf
+	if err := json.Unmarshal(args.StdinData, &conf); err != nil {
+		return err
+	}
+	var prevResult current.Result
+	buf, err := json.Marshal(conf.RawPrevResult)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(buf, &prevResult); err != nil {
+		return err
+	}
+	if len(prevResult.IPs) == 0 {
+		return nil
+	}
+	addr := prevResult.IPs[0].Address
+
+	a, err := netip.ParseAddr(addr.IP.String())
+	if err != nil {
+		return err
+	}
+
+	return deleteAllocation(a)
 }
 
 func cmdCheck(args *skel.CmdArgs) error {
