@@ -13,7 +13,7 @@ PROJECT_NAME = sample-cni
 KIND_CONFIG = kind.yaml
 
 .PHONY: start
-start:
+start: setup
 	$(KIND) create cluster --image kindest/node:v$(KUBERNETES_VERSION) --config=$(KIND_CONFIG) --name $(PROJECT_NAME)
 
 .PHONY: stop
@@ -28,8 +28,11 @@ build:
 .PHONY: install
 install: build
 	docker cp $(PROJECT_NAME) $(PROJECT_NAME)-control-plane:/opt/cni/bin/sample-cni
-	docker exec $(PROJECT_NAME)-control-plane rm /etc/cni/net.d/10-kindnet.conflist
+	docker exec $(PROJECT_NAME)-control-plane ls /etc/cni/net.d/
+	docker exec $(PROJECT_NAME)-control-plane rm /etc/cni/net.d/10-kindnet.conflist || true
 	docker cp 10-$(PROJECT_NAME).conflist $(PROJECT_NAME)-control-plane:/etc/cni/net.d/10-$(PROJECT_NAME).conflist
+	docker exec $(PROJECT_NAME)-control-plane ls /etc/cni/net.d/
+	docker exec $(PROJECT_NAME)-control-plane ls /opt/cni/bin/
 
 .PHONY: setup
 setup: $(KIND) $(KUBECTL) $(KUSTOMIZE)
