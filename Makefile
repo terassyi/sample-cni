@@ -39,15 +39,15 @@ setup: $(KIND) $(KUBECTL) $(KUSTOMIZE)
 
 $(KIND):
 	mkdir -p $(dir $@)
-	curl -sfL -o $@ https://github.com/kubernetes-sigs/kind/releases/download/v$(KIND_VERSION)/kind-linux-amd64
+	curl -sfL -o $@ https://github.com/kubernetes-sigs/kind/releases/download/v$(KIND_VERSION)/kind-linux-arm64
 	chmod a+x $@
 
 $(KUBECTL):
 	mkdir -p $(dir $@)
-	curl -sfL -o $@ https://dl.k8s.io/release/v$(KUBERNETES_VERSION)/bin/linux/amd64/kubectl
+	curl -sfL -o $@ https://dl.k8s.io/release/v$(KUBERNETES_VERSION)/bin/linux/arm64/kubectl
 	chmod a+x $@
 
 $(KUSTOMIZE):
 	mkdir -p $(dir $@)
-	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
+	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_arm64.tar.gz | tar -xz -C $(BINDIR)
 	chmod a+x $@
